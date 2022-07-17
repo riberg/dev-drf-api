@@ -1,5 +1,6 @@
-from rest_framework import viewsets, permissions, pagination, generics
-from .serializers import PostSerializer, TagSerializer
+from multiprocessing import context
+from rest_framework import viewsets, permissions, pagination, generics, filters
+from .serializers import PostSerializer, RegisterSerializer, TagSerializer, UserSerializer
 from .models import Post
 from taggit.models import Tag
 from rest_framework.response import Response
@@ -11,6 +12,8 @@ class PageNumberSetPagination(pagination.PageNumberPagination):
 
 
 class PostViewSet(viewsets.ModelViewSet):
+    search_fields = ['content', 'h1']
+    filter_backends = (filters.SearchFilter,)
     serializer_class = PostSerializer
     queryset = Post.objects.all()
     lookup_field = 'slug'
@@ -39,3 +42,27 @@ class AsideView(generics.ListAPIView):
     queryset = Post.objects.all().order_by('-id')[:5]
     serializer_class = PostSerializer
     permission_classes = [permissions.AllowAny]
+
+
+class RegisterView(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = RegisterSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response({
+            'user': UserSerializer(user, context=self.get_serializer_context()).data,
+            'message': 'Пользователь успешно создан',
+        })
+
+
+class ProfileView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get(self, request, *args, **kwargs):
+        return Response({
+            'user': UserSerializer(request.user, context=self.get_serializer_context()).data,
+        })
