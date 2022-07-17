@@ -1,9 +1,11 @@
 from multiprocessing import context
 from rest_framework import viewsets, permissions, pagination, generics, filters
-from .serializers import CommentSerializer, PostSerializer, RegisterSerializer, TagSerializer, UserSerializer
+from .serializers import CommentSerializer, PostSerializer, RegisterSerializer, TagSerializer, UserSerializer, ContactSerializer
 from .models import Post, Comment
 from taggit.models import Tag
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.core.mail import send_mail
 
 class PageNumberSetPagination(pagination.PageNumberPagination):
     page_size = 6
@@ -77,3 +79,19 @@ class CommentView(generics.ListCreateAPIView):
         post_slug = self.kwargs['post_slug'].lower()
         post = Post.objects.get(slug=post_slug)
         return Comment.objects.filter(post=post)
+
+
+class FeedBackView(APIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = CommentSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer_class = ContactSerializer(data=request.data)
+        if serializer_class.is_valid():
+            data = serializer_class.validated_data
+            name = data.get('name')
+            from_email = data.get('email')
+            subject = data.get('subject')
+            message = data.get('message')
+            send_mail(f'От {name} | {subject}', message, from_email, ['tes@mail.ru'])
+            return Response({'success': 'Sent'})
